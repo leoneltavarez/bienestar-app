@@ -1,75 +1,54 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
-# Configuración
-st.set_page_config(page_title="Prevencionista del Bienestar", layout="wide")
+# 1. Configuración básica
+st.set_page_config(page_title="Dashboard Bienestar", layout="wide")
+st.title("📊 Control Mensual de Bienestar")
 
-st.title("📊 Dashboard: Prevencionista del Bienestar")
-st.markdown("---")
-
+# 2. Carga de datos
 try:
-    # Carga de datos
+    # Ruta relativa para GitHub
     df = pd.read_excel("bienestar_data.xlsx")
     
-    # --- FILTROS EN EL SIDEBAR ---
-    st.sidebar.header("Filtros de Control")
-    
-    # Filtro de Mes
-    meses = df['Mes'].unique() if 'Mes' in df.columns else []
-    mes_sel = st.sidebar.multiselect("Selecciona el Mes:", options=meses, default=meses)
-    
-    # Filtro de Categoría (Opcional, si lo tienes)
-    cats = df['Categoría'].unique() if 'Categoría' in df.columns else []
-    cat_sel = st.sidebar.multiselect("Selecciona Categoría:", options=cats, default=cats)
+    # 3. Slicer de Mes en la barra lateral
+    st.sidebar.header("Configuración")
+    if 'Mes' in df.columns:
+        lista_meses = df['Mes'].unique()
+        meses_seleccionados = st.sidebar.multiselect(
+            "Selecciona el Mes:",
+            options=lista_meses,
+            default=lista_meses  # Por defecto muestra todos (Enero y Febrero)
+        )
+        
+        # FILTRADO CRÍTICO: Aquí es donde se conectan los datos con el Slicer
+        df_filtrado = df[df['Mes'].isin(meses_seleccionados)]
+    else:
+        df_filtrado = df
+        st.error("No se encontró la columna 'Mes' en el Excel.")
 
-    # --- LA CONEXIÓN CRÍTICA (Filtrado de datos) ---
-    # Aquí creamos el sub-conjunto de datos basado en lo que elegiste en el slicer
-    df_selection = df[df['Mes'].isin(mes_sel)]
-    if cat_sel:
-        df_selection = df_selection[df_selection['Categoría'].isin(cat_sel)]
-
-    # --- MÉTRICAS ---
-    col1, col2 = st.columns(2)
-    col1.metric("Datos en Pantalla", len(df_selection))
-    col2.info("Usa el menú de la izquierda para filtrar por mes.")
-
-    # --- GRÁFICOS (Ahora usando df_selection) ---
-    c1, c2 = st.columns(2)
-
-    with c1:
-        st.subheader("📈 Análisis por Alimento")
-        # IMPORTANTE: Aquí usamos df_selection para que el gráfico responda al filtro
-        if not df_selection.empty:
-            fig_bar = px.bar(df_selection, x="Alimento", y="IG", color="Mes",
-                             title="Índice Glucémico Seleccionado",
-                             barmode="group")
-            st.plotly_chart(fig_bar, use_container_width=True)
-        else:
-            st.warning("No hay datos para los meses seleccionados.")
-
-    with c2:
-        st.subheader("🕸️ Perfil de Bienestar")
-        if not df_selection.empty and 'Categoría' in df_selection.columns:
-            # Agrupamos los datos filtrados para el radar
-            radar_data = df_selection.groupby('Categoría')['Valor'].mean().reset_index()
-            
-            fig_radar = go.Figure()
-            fig_radar.add_trace(go.Scatterpolar(
-                r=radar_data['Valor'],
-                theta=radar_data['Categoría'],
-                fill='toself',
-                line_color='#00CC96'
-            ))
-            fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])))
-            st.plotly_chart(fig_radar, use_container_width=True)
-
-    # Tabla de datos (también filtrada)
-    st.markdown("### 📋 Vista Previa de la Selección")
-    st.dataframe(df_selection, use_container_width=True)
+    # 4. Visualización de Gráficos
+    if not df_filtrado.empty:
+        # Gráfico de Barras Simple
+        # Nota: Asegúrate que las columnas 'Alimento' e 'IG' existan en tu Excel
+        # Si tus columnas se llaman distinto, cambia los nombres abajo:
+        fig = px.bar(
+            df_filtrado, 
+            x="Alimento", 
+            y="IG", 
+            color="Mes",
+            title="Índice Glucémico por Mes Seleccionado",
+            barmode="group"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 5. Tabla de datos filtrados
+        st.subheader("Datos detallados")
+        st.dataframe(df_filtrado, use_container_width=True)
+    else:
+        st.warning("Selecciona al menos un mes en el menú de la izquierda.")
 
 except Exception as e:
-    st.error(f"Error en la lógica de filtrado: {e}")
+    st.error(f"Error al cargar el sistema: {e}")
 
-st.info("Desarrollado por Diógenes Leonel Tavarez - Industrial Engineer")
+st.info("Desarrollado por Diógenes Leonel Tavarez")
