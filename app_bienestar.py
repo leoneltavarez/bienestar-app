@@ -1,58 +1,76 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 # Configuración de la página
 st.set_page_config(page_title="Prevencionista del Bienestar", layout="wide")
 
-# Título Principal
+# Título Principal con Emoji
 st.title("📊 Dashboard: Prevencionista del Bienestar")
 st.markdown("---")
 
-# --- CARGA DE DATOS (Cambio clave para GitHub/Streamlit Cloud) ---
+# --- CARGA DE DATOS ---
 try:
-    # Eliminamos la ruta de C:\ para que funcione en la web
-    nombre_archivo = "bienestar_data.xlsx"
-    df = pd.read_excel(nombre_archivo)
+    # Ruta relativa para que funcione en la web
+    df = pd.read_excel("bienestar_data.xlsx")
     
-    # --- FILTROS ---
+    # --- SIDEBAR / FILTROS (Slicer por Mes y Categoría) ---
     st.sidebar.header("Filtros de Control")
-    # Asumiendo que tienes una columna llamada 'Categoría' o similar
-    if 'Categoría' in df.columns:
-        categoria = st.sidebar.multiselect("Selecciona Categoría:", 
-                                           options=df["Categoría"].unique(),
-                                           default=df["Categoría"].unique())
-        df_selection = df.query("Categoría == @categoria")
-    else:
-        df_selection = df
+    
+    # Slicer de Mes
+    meses = df['Mes'].unique() if 'Mes' in df.columns else []
+    mes_sel = st.sidebar.multiselect("Selecciona el Mes:", options=meses, default=meses)
+    
+    # Slicer de Categoría
+    cats = df['Categoría'].unique() if 'Categoría' in df.columns else []
+    cat_sel = st.sidebar.multiselect("Selecciona Categoría:", options=cats, default=cats)
+
+    # Filtrado dinámico
+    df_selection = df[df['Mes'].isin(mes_sel) & df['Categoría'].isin(cat_sel)]
 
     # --- MÉTRICAS PRINCIPALES ---
     col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Registros", len(df_selection))
-    with col2:
-        # Ejemplo: Promedio de Índice Glucémico si existe la columna 'IG'
-        if 'IG' in df.columns:
-            st.metric("Promedio IG", round(df_selection["IG"].mean(), 2))
-    with col3:
-        st.success("Estado: Activo")
+    col1.metric("Total Registros", len(df_selection))
+    if 'Valor' in df_selection.columns:
+        col2.metric("Promedio Valor", round(df_selection['Valor'].mean(), 1))
+    col3.success("Estado: Activo en la Nube")
+
+    st.markdown("---")
 
     # --- GRÁFICOS ---
-    st.markdown("### Análisis Visual")
     c1, c2 = st.columns(2)
 
     with c1:
-        if 'Alimento' in df.columns and 'IG' in df.columns:
-            fig_bar = px.bar(df_selection, x="Alimento", y="IG", title="Índice Glucémico por Alimento")
-            st.plotly_chart(fig_bar, use_container_width=True)
+        st.subheader("📈 Análisis de Barras")
+        # Gráfico de Barras: Categoría vs Valor
+        fig_bar = px.bar(df_selection, x="Categoría", y="Valor", color="Mes",
+                         title="Desempeño por Categoría", barmode="group",
+                         color_discrete_sequence=px.colors.qualitative.Prism)
+        st.plotly_chart(fig_bar, use_container_width=True)
 
     with c2:
-        st.write("#### Tabla de Datos Seleccionados")
-        st.dataframe(df_selection, use_container_width=True)
+        st.subheader("🕸️ Gráfico de Araña (Radar)")
+        # Gráfico de Araña
+        categorias_radar = df_selection['Categoría'].unique()
+        valores_radar = [df_selection[df_selection['Categoría'] == c]['Valor'].mean() for c in categorias_radar]
 
-except FileNotFoundError:
-    st.error(f"❌ No se encontró el archivo '{nombre_archivo}'. Asegúrate de que esté subido a GitHub junto con este código.")
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r=valores_radar,
+            theta=categorias_radar,
+            fill='toself',
+            name='Perfil de Bienestar',
+            line_color='#FF4B4B'
+        ))
+        fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])))
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+    # --- TABLA ---
+    st.markdown("### 📋 Tabla de Datos Seleccionados")
+    st.dataframe(df_selection, use_container_width=True)
+
 except Exception as e:
-    st.error(f"⚠️ Ocurrió un error: {e}")
+    st.error(f"Error al cargar datos: {e}")
 
 st.info("Desarrollado por Diógenes Leonel Tavarez - Industrial Engineer")
