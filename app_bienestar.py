@@ -8,45 +8,42 @@ st.title("📊 Control Mensual de Bienestar")
 
 # 2. Carga de datos
 try:
-    # Ruta relativa para GitHub
+    # Ruta para GitHub
     df = pd.read_excel("bienestar_data.xlsx")
     
     # 3. Slicer de Mes en la barra lateral
     st.sidebar.header("Configuración")
-    if 'Mes' in df.columns:
-        lista_meses = df['Mes'].unique()
-        meses_seleccionados = st.sidebar.multiselect(
-            "Selecciona el Mes:",
-            options=lista_meses,
-            default=lista_meses  # Por defecto muestra todos (Enero y Febrero)
-        )
-        
-        # FILTRADO CRÍTICO: Aquí es donde se conectan los datos con el Slicer
-        df_filtrado = df[df['Mes'].isin(meses_seleccionados)]
-    else:
-        df_filtrado = df
-        st.error("No se encontró la columna 'Mes' en el Excel.")
+    
+    # Usamos la columna 'Mes' que sí existe en tu Excel
+    lista_meses = df['Mes'].unique()
+    meses_seleccionados = st.sidebar.multiselect(
+        "Selecciona el Mes:",
+        options=lista_meses,
+        default=lista_meses
+    )
+    
+    # Filtrado de datos según el Slicer
+    df_filtrado = df[df['Mes'].isin(meses_seleccionados)]
 
     # 4. Visualización de Gráficos
     if not df_filtrado.empty:
-        # Gráfico de Barras Simple
-        # Nota: Asegúrate que las columnas 'Alimento' e 'IG' existan en tu Excel
-        # Si tus columnas se llaman distinto, cambia los nombres abajo:
+        # Gráfico de Barras usando 'Categoría' y 'Valor' (las columnas reales)
         fig = px.bar(
             df_filtrado, 
-            x="Alimento", 
-            y="IG", 
+            x="Categoría", 
+            y="Valor", 
             color="Mes",
-            title="Índice Glucémico por Mes Seleccionado",
-            barmode="group"
+            title="Niveles de Bienestar por Categoría",
+            barmode="group",
+            text_auto=True # Muestra el número sobre la barra
         )
         st.plotly_chart(fig, use_container_width=True)
         
         # 5. Tabla de datos filtrados
-        st.subheader("Datos detallados")
+        st.subheader("Detalle de Registros")
         st.dataframe(df_filtrado, use_container_width=True)
     else:
-        st.warning("Selecciona al menos un mes en el menú de la izquierda.")
+        st.warning("Por favor, selecciona al menos un mes en el menú lateral.")
 
 except Exception as e:
     st.error(f"Error al cargar el sistema: {e}")
